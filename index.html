@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>メダカの観察と会話</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 10px 0;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .display-section {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 10px;
+        }
+
+        .view-container {
+            position: relative;
+            width: 100%;
+        }
+
+        #video,
+        #displayCanvas {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        #displayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        #displayCanvas:active {
+            transform: scale(0.98);
+        }
+
+        .fullscreen-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+
+        .fullscreen-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+
+        .switch-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+
+        .switch-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            transform: scale(1.05);
+        }
+
+        .switch-button:active {
+            transform: scale(0.95);
+        }
+
+        .fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .fullscreen-canvas {
+            max-width: 100vw;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .fullscreen-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 1001;
+        }
+
+        .control-button {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .exit-button {
+            background: linear-gradient(135deg, #2c2c54, #40407a);
+            color: white;
+            font-size: 18px;
+        }
+
+        .control-button:active {
+            transform: scale(0.9);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 20px 10px rgba(255, 107, 107, 0);
+            }
+
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+            }
+        }
+
+        .status-section {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        #status {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #status.recording {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.3), rgba(238, 90, 36, 0.3));
+            animation: pulse 1.5s infinite;
+        }
+
+        #startButton {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4);
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        #startButton:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(79, 172, 254, 0.6);
+        }
+
+        #startButton:active {
+            transform: translateY(0);
+        }
+
+        .vad-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+
+        .vad-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .vad-start-button {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+
+        .vad-start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(17, 153, 142, 0.4);
+        }
+
+        .vad-stop-button {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .vad-stop-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .account-section {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .profile-selector {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+
+        .account-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 5px;
+            }
+
+            h1 {
+                font-size: 1.3rem;
+                margin: 5px 0;
+            }
+
+            .display-section,
+            .status-section {
+                max-width: 95vw;
+            }
+
+            .fullscreen-controls {
+                bottom: 30px;
+            }
+
+            .control-button {
+                width: 60px;
+                height: 60px;
+                font-size: 20px;
+            }
+
+            .mode-switch-container {
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                margin: 10px 0;
+            }
+
+            .mode-label {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                background: rgba(255, 255, 255, 0.1);
+                padding: 5px 10px;
+                border-radius: 15px;
+                transition: all 0.2s;
+            }
+
+            .mode-label:hover {
+                background: rgba(255, 255, 255, 0.2);
+            }
+
+            /* ラジオボタンを隠して見た目をカスタマイズしても良いが、今回はシンプルに */
+            input[type="radio"] {
+                accent-color: #00f2fe;
+                transform: scale(1.2);
+            }
+
+            .manual-record-btn {
+                background: linear-gradient(135deg, #ff9966, #ff5e62);
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 80px;
+                height: 80px;
+                font-size: 30px;
+                box-shadow: 0 4px 15px rgba(255, 94, 98, 0.4);
+                cursor: pointer;
+                transition: all 0.1s;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 10px auto;
+                user-select: none;
+                /* 長押しで選択されないように */
+                -webkit-user-select: none;
+            }
+
+            .manual-record-btn:active {
+                transform: scale(0.95);
+                box-shadow: 0 2px 10px rgba(255, 94, 98, 0.6);
+                background: linear-gradient(135deg, #e65100, #ff5e62);
+            }
+
+            /* 押している間のアニメーション */
+            .manual-record-btn.recording {
+                animation: pulse-red 1s infinite;
+            }
+
+            @keyframes pulse-red {
+                0% {
+                    box-shadow: 0 0 0 0 rgba(255, 94, 98, 0.7);
+                }
+
+                70% {
+                    box-shadow: 0 0 20px 10px rgba(255, 94, 98, 0);
+                }
+
+                100% {
+                    box-shadow: 0 0 0 0 rgba(255, 94, 98, 0);
+                }
+            }
+
+            .fullscreen-rec-btn {
+                position: absolute;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 2000;
+                width: 100px;
+                height: 100px;
+                font-size: 40px;
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+                display: none;
+                /* デフォルト非表示 */
+            }
+
+            .fullscreen-rec-btn.visible {
+                display: flex;
+            }
+        }
+    </style>
+    <!-- 🔥 ONNX Runtimeのバージョンを1.18.0に固定（最新版でのiOSクラッシュ回避） -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>メダカにお話ししてね！</h1>
+        <div class="account-section">
+            <select id="profileSelect" class="profile-selector">
+                <option value="">アカウントを選択...</option>
+            </select>
+            <button id="addAccountBtn" class="account-btn">➕ 新規作成</button>
+        </div>
+        <div class="display-section">
+            <div class="view-container">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="displayCanvas" class="hidden"></canvas>
+                <button class="fullscreen-button" id="canvasFullscreenBtn">🔍 拡大</button>
+                <button class="switch-button" id="switchViewBtn">📊 解析結果</button>
+            </div>
+        </div>
+
+        <div class="status-section">
+            <div id="status">🎤 音声入力 待機中...</div>
+
+            <div class="vad-controls hidden" id="vadControls">
+                <!-- モード切替スイッチ -->
+                <div class="mode-switch-container">
+                    <label class="mode-label">
+                        <input type="radio" name="recMode" value="vad" checked> 🎤 自動検出
+                    </label>
+                    <label class="mode-label">
+                        <input type="radio" name="recMode" value="manual"> 🔘 手動ボタン
+                    </label>
+                </div>
+
+                <!-- VADモード用ボタン -->
+                <div id="vadButtons">
+                    <button class="vad-button vad-start-button" id="vadStartBtn">🎤 音声検出開始</button>
+                    <button class="vad-button vad-stop-button" id="vadStopBtn">⏹️ 音声検出停止</button>
+                </div>
+
+                <!-- 手動モード用ボタン -->
+                <div id="manualButtons" class="hidden">
+                    <button class="manual-record-btn" id="manualRecordBtn">🎙️</button>
+                    <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">押しながら話す</div>
+                </div>
+            </div>
+
+            <button id="startButton">🚀 会話を始める</button>
+        </div>
+    </div>
+
+    <div class="fullscreen-container hidden" id="fullscreenContainer">
+        <canvas id="fullscreenCanvas"></canvas>
+        <div class="fullscreen-controls">
+            <button class="control-button exit-button" id="exitBtn">✕</button>
+        </div>
+        <!-- フルスクリーン用録音ボタン -->
+        <button class="manual-record-btn fullscreen-rec-btn" id="fullscreenRecordBtn">🎙️</button>
+    </div>
+
+    <audio id="replyAudio" preload="auto"></audio>
+
+    <script>
+        // 設定・定数
+        const CONFIG = {
+            SERVER_URL: window.location.origin,
+            PROFILE_ID: 1,
+            IS_IOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+        };
+
+        // 🔥 iOS対策: 設定のオーバーライド
+        if (CONFIG.IS_IOS) {
+            CONFIG.FRAME_RATE = 500; // iOSは0.5秒に1回 (2FPS) に制限してクラッシュ回避
+        } else {
+            CONFIG.FRAME_RATE = 34; // デフォルトのフレームレート
+        }
+
+        // 🔥 iOS対策: ONNX Runtimeのマルチスレッドを無効化（クラッシュ回避）
+        // iOS Safariではセキュリティ制限によりSharedArrayBufferが使えず、
+        // マルチスレッド版WASM(ort-wasm-simd-threaded)でクラッシュするため、シングルスレッド版を強制します。
+        ort.env.wasm.numThreads = 1;
+        ort.env.wasm.proxy = false;
+        // DOM要素の取得
+        const elements = {
+            video: document.getElementById('video'),
+            displayCanvas: document.getElementById('displayCanvas'),
+            fullscreenCanvas: document.getElementById('fullscreenCanvas'),
+            replyAudio: document.getElementById("replyAudio"),
+            statusDiv: document.getElementById("status"),
+            canvasFullscreenBtn: document.getElementById("canvasFullscreenBtn"),
+            fullscreenContainer: document.getElementById("fullscreenContainer"),
+            startButton: document.getElementById("startButton"),
+            vadControls: document.getElementById("vadControls"),
+            vadStartBtn: document.getElementById("vadStartBtn"),
+            vadStopBtn: document.getElementById("vadStopBtn"),
+            exitBtn: document.getElementById("exitBtn"),
+            switchViewBtn: document.getElementById("switchViewBtn")
+        };
+
+    
+
+
+        const displayCtx = elements.displayCanvas.getContext('2d');
+        const fullscreenCtx = elements.fullscreenCanvas.getContext('2d');
+        // グローバル状態管理
+        const appState = {
+            isFullscreen: false,
+            currentProfileId: null,
+            currentImageData: null,
+            isRecording: false,
+            shouldRestart: true,
+            isSending: false,
+            ws: null,
+            wsConnected: false,
+            showingAnalysis: false
+        };
+        // ブラウザ物体検出モジュール
+        const browserDetectionModule = {
+            session: null,
+            modelLoaded: false,
+            inputWidth: 512,   //横幅
+            inputHeight: 288,  //高さ
+            lastPadding: null, //パディング情報
+
+            // ✅ 再利用用のCanva (メモリ節約)
+            _rotateCanvas: null,
+            _resizeCanvas: null,
+            _paddedCanvas: null,
+
+            async loadModel() {
+                try {
+                    console.log('[ブラウザ検出] モデル読み込み開始...');
+
+                    const modelUrl = `${window.location.origin}/best.onnx`;
+                    console.log('[モデルURL]', modelUrl);
+
+                    const sessionOptions = {
+                        // 🔥 iOSではWebGLバックエンドが不安定なため、WASM(CPU)のみを使用する
+                        executionProviders: CONFIG.IS_IOS ? ['wasm'] : ['webgl', 'wasm'],
+                        graphOptimizationLevel: 'all',
+                        enableCpuMemArena: false,
+                        enableMemPattern: false,
+                        logSeverityLevel: 3
+                    };
+
+                    console.log('[モデル] ダウンロード開始...');
+                    const response = await fetch(modelUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        cache: 'default',
+                        credentials: 'omit'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const arrayBuffer = await response.arrayBuffer();
+
+                    ort.env.webgl.pack = false;
+
+                    this.session = await ort.InferenceSession.create(
+                        arrayBuffer,
+                        {
+                            executionProviders: ['cpu']
+                        }
+                    );
+
+                    console.log("session created");
+                    this.modelLoaded = true;
+                    console.log('✅ [ブラウザ検出] モデル読み込み完了');
+                    elements.statusDiv.textContent = "✅ 検出モデル準備完了";
+
+                } catch (error) {
+                    this.modelLoaded = false;
+                    console.error('❌ [ブラウザ検出] モデル読み込み失敗:', error);
+                    elements.statusDiv.textContent = "⚠️ モデル読み込み失敗";
+                }
+            },
+
+            async detectObjects(videoElement) {
+                if (!this.modelLoaded) {
+                    console.warn('[ブラウザ検出] モデルが未読み込み');
+                    return [];
+                }
+
+                const startTime = performance.now();
+
+                try {
+                    const inputTensor = await this.preprocessImage(videoElement);
+
+                    const results = await this.session.run({ images: inputTensor });
+                    const inferenceTime = performance.now() - startTime;
+
+                    console.log(`[ブラウザ検出] 推論時間: ${inferenceTime.toFixed(1)}ms`);
+
+                    const detections = this.postprocess(results, videoElement);
+
+                    return detections;
+
+                } catch (error) {
+                    console.error('[ブラウザ検出] 検出エラー:', error);
+                    return [];
+                }
+            },
+
+            async preprocessImage(videoElement) {
+                let videoWidth = videoElement.videoWidth;
+                let videoHeight = videoElement.videoHeight;
+
+                console.log(`[前処理] 元の映像サイズ: ${videoWidth}x${videoHeight}`);
+
+                // ✅ キャンバスの初期化（初回のみ）
+                if (!this._rotateCanvas) this._rotateCanvas = document.createElement('canvas');
+                if (!this._resizeCanvas) this._resizeCanvas = document.createElement('canvas');
+                if (!this._paddedCanvas) this._paddedCanvas = document.createElement('canvas');
+
+                // ✅ 縦長の場合は回転して横長にする
+                let sourceElement = videoElement;
+                if (videoHeight > videoWidth) {
+                    console.log('[前処理] 縦長映像を90度回転');
+                    const rotateCanvas = this._rotateCanvas;
+                    rotateCanvas.width = videoHeight;  // 回転後の幅
+                    rotateCanvas.height = videoWidth;  // 回転後の高さ
+                    const rotateCtx = rotateCanvas.getContext('2d');
+
+                    rotateCtx.translate(videoHeight / 2, videoWidth / 2);
+                    rotateCtx.rotate(Math.PI / 2);
+                    rotateCtx.drawImage(videoElement, -videoWidth / 2, -videoHeight / 2);
+
+                    // サイズを入れ替え
+                    const temp = videoWidth;
+                    videoWidth = videoHeight;
+                    videoHeight = temp;
+
+                    sourceElement = rotateCanvas;
+                    console.log(`[前処理] 回転後サイズ: ${videoWidth}x${videoHeight}`);
+                }
+
+                // ✅ アスペクト比を計算
+                const videoAspect = videoWidth / videoHeight;
+                const targetAspect = this.inputWidth / this.inputHeight;
+
+                let canvasWidth, canvasHeight;
+                let offsetX = 0, offsetY = 0;
+
+                // ✅ アスペクト比に応じてリサイズサイズを決定
+                if (Math.abs(videoAspect - targetAspect) < 0.01) {
+                    // ほぼ同じアスペクト比 → そのままリサイズ
+                    canvasWidth = this.inputWidth;
+                    canvasHeight = this.inputHeight;
+                } else if (videoAspect > targetAspect) {
+                    // 映像の方が横長 → 幅を基準に、高さを調整
+                    canvasWidth = this.inputWidth;
+                    canvasHeight = Math.round(this.inputWidth / videoAspect);
+                    offsetY = Math.floor((this.inputHeight - canvasHeight) / 2);
+                } else {
+                    // 映像の方が縦長 → 高さを基準に、幅を調整
+                    canvasHeight = this.inputHeight;
+                    canvasWidth = Math.round(this.inputHeight * videoAspect);
+                    offsetX = Math.floor((this.inputWidth - canvasWidth) / 2);
+                }
+
+                // console.log(`[前処理] リサイズ: ${canvasWidth}x${canvasHeight}`);
+                // console.log(`[前処理] パディング: offsetX=${offsetX}, offsetY=${offsetY}`);
+
+                // ✅ ステップ1: アスペクト比を維持してリサイズ
+                const resizeCanvas = this._resizeCanvas;
+                resizeCanvas.width = canvasWidth;
+                resizeCanvas.height = canvasHeight;
+                // 🔥 iOSでwillReadFrequentlyがメモリリークの原因になることがあるため削除
+                const resizeCtx = resizeCanvas.getContext('2d');
+                resizeCtx.drawImage(sourceElement, 0, 0, canvasWidth, canvasHeight);
+
+                // ✅ ステップ2: 512x288にパディング
+                const paddedCanvas = this._paddedCanvas;
+                paddedCanvas.width = this.inputWidth;
+                paddedCanvas.height = this.inputHeight;
+                const paddedCtx = paddedCanvas.getContext('2d');
+
+                // 背景を黒で塗りつぶし
+                paddedCtx.fillStyle = '#000000';
+                paddedCtx.fillRect(0, 0, this.inputWidth, this.inputHeight);
+
+                // 中央に配置
+                paddedCtx.drawImage(resizeCanvas, offsetX, offsetY);
+
+                // ✅ パディング情報を保存（後処理で使用）
+                this.lastPadding = {
+                    offsetX,
+                    offsetY,
+                    canvasWidth,
+                    canvasHeight,
+                    scaleX: videoWidth / canvasWidth,
+                    scaleY: videoHeight / canvasHeight,
+                    wasRotated: sourceElement !== videoElement  // 回転フラグ
+                };
+
+                // ImageDataを取得
+                const imageData = paddedCtx.getImageData(0, 0, this.inputWidth, this.inputHeight);
+                const pixels = imageData.data;
+
+                // ✅ RGB分離してFloat32Arrayに変換
+                const red = new Float32Array(this.inputWidth * this.inputHeight);
+                const green = new Float32Array(this.inputWidth * this.inputHeight);
+                const blue = new Float32Array(this.inputWidth * this.inputHeight);
+
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const idx = i / 4;
+                    red[idx] = pixels[i] / 255.0;
+                    green[idx] = pixels[i + 1] / 255.0;
+                    blue[idx] = pixels[i + 2] / 255.0;
+                }
+
+                // チャネルを結合
+                const input = new Float32Array(3 * this.inputWidth * this.inputHeight);
+                input.set(red, 0);
+                input.set(green, this.inputWidth * this.inputHeight);
+                input.set(blue, 2 * this.inputWidth * this.inputHeight);
+
+                // ✅ Tensorに変換 [1, 3, 288, 512]
+                return new ort.Tensor('float32', input, [1, 3, this.inputHeight, this.inputWidth]);
+            },
+            postprocess(results, videoElement) {
+                const output = results.output0;
+                const outputData = output.data;
+                const [batchSize, numAttributes, numBoxes] = output.dims;
+
+                console.log(`[後処理] 出力形状: [${output.dims.join(', ')}]`);
+
+                const detections = [];
+                const confThreshold = 0.6;
+                const iouThreshold = 0.45;
+
+                // ✅ パディング情報を取得
+                if (!this.lastPadding) {
+                    console.error('[後処理] パディング情報がありません');
+                    return [];
+                }
+
+                const { offsetX, offsetY, canvasWidth, canvasHeight, scaleX, scaleY, wasRotated } = this.lastPadding;
+
+                // ✅ 元の映像サイズを取得
+                const originalVideoWidth = videoElement.videoWidth;
+                const originalVideoHeight = videoElement.videoHeight;
+
+                console.log(`[後処理] スケール: scaleX=${scaleX.toFixed(2)}, scaleY=${scaleY.toFixed(2)}, 回転=${wasRotated}`);
+
+                for (let i = 0; i < numBoxes; i++) {
+                    const cx = outputData[i];
+                    const cy = outputData[numBoxes + i];
+                    const w = outputData[2 * numBoxes + i];
+                    const h = outputData[3 * numBoxes + i];
+                    const confidence = outputData[4 * numBoxes + i];
+
+                    if (confidence > confThreshold) {
+                        // ✅ パディングを考慮した座標変換
+                        const adjustedCx = cx - offsetX;
+                        const adjustedCy = cy - offsetY;
+
+                        // パディング領域外は無視
+                        if (adjustedCx < 0 || adjustedCx > canvasWidth ||
+                            adjustedCy < 0 || adjustedCy > canvasHeight) {
+                            continue;
+                        }
+
+                        // 回転後の座標系での位置
+                        let x = (adjustedCx - w / 2) * scaleX;
+                        let y = (adjustedCy - h / 2) * scaleY;
+                        let width = w * scaleX;
+                        let height = h * scaleY;
+
+                        // ✅ 回転していた場合、座標を元の縦長映像に変換
+                        if (wasRotated) {
+                            // 回転後の座標 (x, y, w, h) → 元の縦長座標に変換
+                            // 90度回転の逆変換: (x, y) → (y, rotatedWidth - x - w)
+                            const rotatedWidth = originalVideoHeight;  // 回転後の幅 = 元の高さ
+                            const rotatedHeight = originalVideoWidth;  // 回転後の高さ = 元の幅
+
+                            const newX = y;
+                            const newY = rotatedWidth - x - width;
+                            const newWidth = height;
+                            const newHeight = width;
+
+                            x = newX;
+                            y = newY;
+                            width = newWidth;
+                            height = newHeight;
+                        }
+
+                        detections.push({
+                            x: Math.max(0, x),
+                            y: Math.max(0, y),
+                            width: Math.min(width, originalVideoWidth - Math.max(0, x)),
+                            height: Math.min(height, originalVideoHeight - Math.max(0, y)),
+                            confidence: confidence,
+                            class: 0
+                        });
+                    }
+                }
+
+                // NMS（Non-Maximum Suppression）を適用
+                const filteredDetections = this.applyNMS(detections, iouThreshold);
+
+                console.log(`[後処理] 検出数: ${filteredDetections.length}`);
+                return filteredDetections;
+            },
+
+            applyNMS(boxes, iouThreshold) {
+                if (boxes.length === 0) return [];
+
+                // 信頼度でソート
+                boxes.sort((a, b) => b.confidence - a.confidence);
+
+                const selected = [];
+                const suppressed = new Set();
+
+                for (let i = 0; i < boxes.length; i++) {
+                    if (suppressed.has(i)) continue;
+
+                    selected.push(boxes[i]);
+
+                    for (let j = i + 1; j < boxes.length; j++) {
+                        if (suppressed.has(j)) continue;
+
+                        const iou = this.calculateIoU(boxes[i], boxes[j]);
+                        if (iou > iouThreshold) {
+                            suppressed.add(j);
+                        }
+                    }
+                }
+
+                return selected;
+            },
+
+            calculateIoU(box1, box2) {
+                const x1 = Math.max(box1.x, box2.x);
+                const y1 = Math.max(box1.y, box2.y);
+                const x2 = Math.min(box1.x + box1.width, box2.x + box2.width);
+                const y2 = Math.min(box1.y + box1.height, box2.y + box2.height);
+
+                const intersectionArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+                const box1Area = box1.width * box1.height;
+                const box2Area = box2.width * box2.height;
+                const unionArea = box1Area + box2Area - intersectionArea;
+
+                return intersectionArea / unionArea;
+            },
+
+            drawDetections(canvas, detections) {
+                const ctx = canvas.getContext('2d');
+
+                detections.forEach((det, index) => {
+                    // バウンディングボックス描画
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(det.x, det.y, det.width, det.height);
+
+                    // ラベル背景
+                    const label = `メダカ${index + 1}: ${(det.confidence * 100).toFixed(0)}%`;
+                    ctx.font = 'bold 16px Arial';
+                    const textWidth = ctx.measureText(label).width;
+
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                    ctx.fillRect(det.x, det.y - 25, textWidth + 10, 25);
+
+                    // ラベルテキスト
+                    ctx.fillStyle = '#000000';
+                    ctx.fillText(label, det.x + 5, det.y - 7);
+                });
+            }
+        };
+
+        // カメラ機能
+        const cameraModule = {
+            async startCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: "environment",
+                            // 🔥 iOSではさらに解像度を下げる (480p -> 360p) + フレームレート制限
+                            width: { ideal: CONFIG.IS_IOS ? 480 : 1280 },
+                            height: { ideal: CONFIG.IS_IOS ? 360 : 720 },
+                            aspectRatio: { ideal: 16 / 9 }
+                        }
+                    });
+                    elements.video.srcObject = stream;
+                } catch (err) {
+                    elements.statusDiv.textContent = '⚠️ カメラへのアクセスが拒否されました';
+                    console.error('Camera error:', err);
+                }
+            }
+        };
+
+        const medakaVitalityModule = {
+            // 追跡データ
+            trackHistory: new Map(),      // ID → [{pos, time}, ...]
+            speedHistory: new Map(),      // ID → [speed1, speed2, ...]
+            maxHistoryLength: 30,         // 2秒分の履歴
+            fps: 15,
+            nextId: 0,
+
+            // 元気度判定の閾値（ピクセル/秒）
+            thresholds: {
+                active: 40,   // 40px/秒以上 → 元気
+                normal: 10,   // 15-40px/秒 → 普通
+            },
+
+            lastFrameTime: null,
+
+            /**
+             * 物体追跡アルゴリズム（最近傍法）
+             */
+            trackObjects(detections) {
+                const assignedIds = new Map();
+                const usedIds = new Set();
+                const MAX_DISTANCE = 100;
+
+                detections.forEach(det => {
+                    const currentCenter = {
+                        x: det.x + det.width / 2,
+                        y: det.y + det.height / 2
+                    };
+
+                    let bestId = null;
+                    let minDistance = Infinity;
+
+                    // 既存の全メダカと距離を比較
+                    for (let [id, history] of this.trackHistory.entries()) {
+                        if (usedIds.has(id)) continue;
+                        if (history.length === 0) continue;
+
+                        const lastPos = history[history.length - 1].pos;
+                        const distance = Math.sqrt(
+                            Math.pow(currentCenter.x - lastPos.x, 2) +
+                            Math.pow(currentCenter.y - lastPos.y, 2)
+                        );
+
+                        if (distance < minDistance && distance < MAX_DISTANCE) {
+                            minDistance = distance;
+                            bestId = id;
+                        }
+                    }
+
+                    if (bestId !== null) {
+                        assignedIds.set(det, bestId);
+                        usedIds.add(bestId);
+                        console.log(`[追跡] ID ${bestId} 継続 (距離: ${minDistance.toFixed(1)}px)`);
+                    } else {
+                        const newId = this.nextId++;
+                        assignedIds.set(det, newId);
+                        this.trackHistory.set(newId, []);
+                        console.log(`[追跡] 新メダカ検出 ID ${newId}`);
+                    }
+                });
+
+                return assignedIds;
+            },
+
+            /**
+             * 検出結果から速度を計算して元気度を更新
+             */
+            update(detections) {
+                const currentTime = performance.now();
+
+                // FPS計算
+                if (this.lastFrameTime) {
+                    const deltaTime = (currentTime - this.lastFrameTime) / 1000;
+                    this.fps = 1 / deltaTime;
+                }
+                this.lastFrameTime = currentTime;
+
+                // 追跡アルゴリズムでIDを割り当て
+                const assignedIds = this.trackObjects(detections);
+
+                // 各メダカの速度を個別に計算
+                detections.forEach(det => {
+                    const medakaId = assignedIds.get(det);
+                    const currentPos = {
+                        x: det.x + det.width / 2,
+                        y: det.y + det.height / 2
+                    };
+
+                    // 速度計算
+                    const speed = this.calculateSpeed(medakaId, currentPos);
+
+                    if (speed !== null) {
+                        // メダカごとに速度を保存
+                        if (!this.speedHistory.has(medakaId)) {
+                            this.speedHistory.set(medakaId, []);
+                        }
+                        const speeds = this.speedHistory.get(medakaId);
+                        speeds.push(speed);
+
+                        if (speeds.length > this.maxHistoryLength) {
+                            speeds.shift();
+                        }
+                    }
+
+                    // 位置を履歴に追加
+                    const history = this.trackHistory.get(medakaId);
+                    history.push({ pos: currentPos, time: currentTime });
+
+                    if (history.length > 10) {
+                        history.shift();
+                    }
+                });
+
+                // 古い追跡を削除（5秒間検出されなかったメダカ）
+                const tracksToDelete = [];
+                for (let [id, history] of this.trackHistory.entries()) {
+                    if (history.length === 0) continue;
+                    const lastTime = history[history.length - 1].time;
+                    if (currentTime - lastTime > 5000) {
+                        tracksToDelete.push(id);
+                    }
+                }
+                tracksToDelete.forEach(id => {
+                    console.log(`[追跡] ID ${id} を削除（5秒間未検出）`);
+                    this.trackHistory.delete(id);
+                    this.speedHistory.delete(id);
+                });
+
+                // 🔥 最も元気なメダカの状態を採用
+                const vitality = this.getBestVitality();
+
+                return vitality;
+            },
+
+            /**
+             * メダカの速度を計算（ピクセル/秒）
+             */
+            calculateSpeed(medakaId, currentPos) {
+                const history = this.trackHistory.get(medakaId);
+
+                if (!history || history.length < 2) {
+                    return null;
+                }
+
+                const prevData = history[history.length - 1];
+                const prevPos = prevData.pos;
+                const prevTime = prevData.time;
+
+                // 距離を計算（ピクセル）
+                const distance = Math.sqrt(
+                    Math.pow(currentPos.x - prevPos.x, 2) +
+                    Math.pow(currentPos.y - prevPos.y, 2)
+                );
+
+                // 時間差（秒）
+                const deltaTime = (performance.now() - prevTime) / 1000;
+
+                if (deltaTime === 0) return null;
+
+                // 速度（ピクセル/秒）
+                const speed = distance / deltaTime;
+
+                return speed;
+            },
+
+            /**
+             * 🔥 最も元気なメダカの元気度を返す
+             */
+            getBestVitality() {
+                if (this.speedHistory.size === 0) {
+                    return {
+                        status: "Unknown",
+                        statusJa: "不明",
+                        avgSpeed: 0,
+                        score: 0,
+                        color: "#999999",
+                        medakaId: null,
+                        trackedCount: 0
+                    };
+                }
+
+                let bestVitality = null;
+                let maxScore = -1;
+
+                // 各メダカの元気度を計算し、最高スコアを選択
+                for (let [id, speeds] of this.speedHistory.entries()) {
+                    if (speeds.length < 10) continue;  // 最低10フレーム必要
+
+                    const vitality = this.calculateVitalityForMedaka(id, speeds);
+
+                    if (vitality.score > maxScore) {
+                        maxScore = vitality.score;
+                        bestVitality = vitality;
+                    }
+                }
+
+                // データ不足の場合
+                if (bestVitality === null) {
+                    return {
+                        status: "Unknown",
+                        statusJa: "不明",
+                        avgSpeed: 0,
+                        score: 0,
+                        color: "#999999",
+                        medakaId: null,
+                        trackedCount: this.speedHistory.size
+                    };
+                }
+
+                // 追跡中のメダカ数を追加
+                bestVitality.trackedCount = this.speedHistory.size;
+
+                console.log(`[元気度] 最も元気: ID ${bestVitality.medakaId} (スコア: ${bestVitality.score})`);
+
+                return bestVitality;
+            },
+
+            /**
+             * 🔥 個別メダカの元気度を計算
+             */
+            calculateVitalityForMedaka(medakaId, speeds) {
+                const avgSpeed = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
+
+                let status, statusJa, score, color;
+
+                if (avgSpeed >= this.thresholds.active) {
+                    status = "Active";
+                    statusJa = "元気";
+                    score = 100;
+                    color = "#00ff00";
+                } else if (avgSpeed >= this.thresholds.normal) {
+                    status = "Normal";
+                    statusJa = "普通";
+                    score = 70;
+                    color = "#ffff00";
+                } else {
+                    status = "Lethargic";
+                    statusJa = "元気ない";
+                    score = 30;
+                    color = "#ff0000";
+                }
+
+                return {
+                    medakaId,
+                    status,
+                    statusJa,
+                    avgSpeed: avgSpeed.toFixed(2),
+                    score,
+                    color,
+                    dataPoints: speeds.length
+                };
+            },
+
+            /**
+             * 元気度をサーバーに送信
+             */
+            async sendVitalityToServer(vitality) {
+                try {
+                    await fetch(`${CONFIG.SERVER_URL}/update_health`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            status: vitality.status,
+                            avg_speed: parseFloat(vitality.avgSpeed),
+                            score: vitality.score
+                        })
+                    });
+                } catch (error) {
+                    console.error("元気度送信エラー:", error);
+                }
+            },
+
+            /**
+             * リセット
+             */
+            reset() {
+                this.trackHistory.clear();
+                this.speedHistory.clear();
+                this.lastFrameTime = null;
+                this.nextId = 0;
+                console.log('[追跡] リセット完了');
+            }
+        };
+
+        // 画像処理・送信機能
+        const imageModule = {
+            async sendFrame() {
+                if (appState.isSending || !elements.video.videoWidth || !elements.video.videoHeight) return;
+
+                appState.isSending = true;
+
+                try {
+                    if (!browserDetectionModule.modelLoaded) {
+                        appState.isSending = false;
+                        return;
+                    }
+                    console.log("before detect");
+                    const detections = await browserDetectionModule.detectObjects(elements.video);
+                    console.log("detections", detections.length);
+                    elements.displayCanvas.width = elements.video.videoWidth;
+                    elements.displayCanvas.height = elements.video.videoHeight;
+
+                    const ctx = elements.displayCanvas.getContext('2d');
+                    ctx.drawImage(elements.video, 0, 0);
+
+                    if (detections.length > 0) {
+                        browserDetectionModule.drawDetections(elements.displayCanvas, detections);
+
+                        // 🔥 最も元気なメダカの元気度を取得
+                        const vitality = medakaVitalityModule.update(detections);
+
+                        // 画面に元気度を表示
+                        this.drawVitalityInfo(ctx, vitality);
+
+                        // 🔥 データが十分溜まったらサーバー送信
+                        if (vitality.dataPoints >= 30) {
+                            await medakaVitalityModule.sendVitalityToServer(vitality);
+                        }
+                    } else {
+                        // 検出がない場合も元気度表示エリアをクリア/表示
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                        ctx.fillRect(10, 10, 220, 80);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '16px Arial';
+                        ctx.fillText('メダカを探しています...', 20, 50);
+                    }
+
+                    if (appState.isFullscreen && appState.showingAnalysis) {
+                        this.updateFullscreenWithCanvas();
+                    }
+
+                } catch (error) {
+                    console.error("検出エラー:", error);
+                } finally {
+                    appState.isSending = false;
+                }
+            },
+
+            /**
+             * 🔥 Canvas上に元気度情報を描画（修正版）
+             */
+            drawVitalityInfo(ctx, vitality) {
+                const padding = 10;
+                const boxWidth = 220;
+                const boxHeight = 100;
+
+                // 半透明の背景
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(padding, padding, boxWidth, boxHeight);
+
+                // 元気度テキスト
+                ctx.fillStyle = vitality.color;
+                ctx.font = 'bold 20px Arial';
+                ctx.fillText(`元気度: ${vitality.score}`, padding + 10, padding + 30);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Arial';
+                ctx.fillText(`状態: ${vitality.statusJa}`, padding + 10, padding + 55);
+                ctx.fillText(`速度: ${vitality.avgSpeed} px/s`, padding + 10, padding + 75);
+
+                // 🔥 追跡情報を表示
+                if (vitality.medakaId !== null) {
+                    ctx.fillText(`🐟 メダカID: ${vitality.medakaId}`, padding + 10, padding + 95);
+                }
+
+                // 🔥 右上に追跡中のメダカ数を表示
+                if (vitality.trackedCount > 0) {
+                    const countText = `追跡中: ${vitality.trackedCount}匹`;
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(elements.displayCanvas.width - 120, 10, 110, 30);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillText(countText, elements.displayCanvas.width - 110, 30);
+                }
+            },
+
+            /**
+             * フルスクリーン表示時にCanvasを更新
+             */
+            updateFullscreenWithCanvas() {
+                if (!appState.isFullscreen) return;
+
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+
+                elements.fullscreenCanvas.width = screenWidth;
+                elements.fullscreenCanvas.height = screenHeight;
+
+                fullscreenCtx.imageSmoothingEnabled = true;
+                fullscreenCtx.imageSmoothingQuality = 'high';
+
+                const canvasAspectRatio = elements.displayCanvas.width / elements.displayCanvas.height;
+                const screenAspectRatio = screenWidth / screenHeight;
+
+                let drawWidth, drawHeight, drawX, drawY;
+
+                if (canvasAspectRatio > screenAspectRatio) {
+                    drawWidth = screenWidth;
+                    drawHeight = screenWidth / canvasAspectRatio;
+                    drawX = 0;
+                    drawY = (screenHeight - drawHeight) / 2;
+                } else {
+                    drawWidth = screenHeight * canvasAspectRatio;
+                    drawHeight = screenHeight;
+                    drawX = (screenWidth - drawWidth) / 2;
+                    drawY = 0;
+                }
+
+                fullscreenCtx.clearRect(0, 0, screenWidth, screenHeight);
+                fullscreenCtx.drawImage(elements.displayCanvas, drawX, drawY, drawWidth, drawHeight);
+            }
+        };
+
+        // VAD音声認識機能
+        const speechModule = {
+            mediaRecorder: null,
+            audioChunks: [],
+            audioContext: null,
+            analyser: null,
+            silenceTimeout: null,
+            stream: null,
+            isListening: false,
+            isListening: false,
+            vadPaused: false,  // 🆕 VAD一時停止フラグ
+            mode: 'vad',       // 🆕 'vad' or 'manual'
+
+            // VAD設定
+            SILENCE_THRESHOLD: 0.08,      // 無音判定の閾値（0.015 → 0.08）
+            SILENCE_DURATION: 1000,       // 無音が続いたら停止（ミリ秒）
+            VOICE_THRESHOLD: 2.0,        // 音声検出の閾値（0.035 → 0.10）
+            MIN_RECORDING_TIME: 2000,      // 最低録音時間（ミリ秒）
+            recordingStartTime: null,
+
+            init() {
+                console.log('[音声] Whisper API + VAD モードで初期化');
+            },
+
+            async startListening() {
+                if (this.isListening) return;
+
+                try {
+                    const sessionResponse = await fetch(`${CONFIG.SERVER_URL}/check_session_status`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ profile_id: CONFIG.PROFILE_ID })
+                    });
+
+                    const sessionData = await sessionResponse.json();
+
+                    if (sessionData.has_active_session) {
+                        console.log("[音声待機] 2回目フロー - 音声検出待機開始");
+                        await this.startVoiceDetection();
+                    } else if (sessionData.proactive_enabled) {
+                        console.log("[音声待機] 1回目フロー - メダカから話しかけ");
+                        await this.startWithMedakaGreeting();
+                    } else {
+                        console.log("[音声待機] 1回目フロー - 音声検出待機開始");
+                        await this.startVoiceDetection();
+                    }
+                } catch (error) {
+                    console.error("セッション状態確認エラー:", error);
+                    await this.startVoiceDetection();
+                }
+            },
+
+            async startVoiceDetection() {
+                if (this.isListening) return;
+
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            channelCount: 1,           // モノラル
+                            sampleRate: 16000          // 🔥 16kHz（Whisper推奨）
+                        }
+                    });
+
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 2048;
+
+                    const source = this.audioContext.createMediaStreamSource(this.stream);
+                    source.connect(this.analyser);
+
+                    this.isListening = true;
+                    this.vadPaused = false;  // 🆕 初期化
+                    elements.statusDiv.textContent = "🎤 話しかけてください...";
+                    elements.statusDiv.classList.remove('recording');
+                    this.monitorVoiceLevel();
+
+                } catch (error) {
+                    console.error("音声検出開始エラー:", error);
+                    elements.statusDiv.textContent = "⚠️ マイクへのアクセスが拒否されました";
+                }
+            },
+
+            monitorVoiceLevel() {
+                const bufferLength = this.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                const checkVoice = () => {
+                    if (!this.isListening) return;
+
+                    this.analyser.getByteTimeDomainData(dataArray);
+
+                    let sum = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        const normalized = (dataArray[i] - 128) / 128;
+                        sum += normalized * normalized;
+                    }
+                    const rms = Math.sqrt(sum / bufferLength);
+
+                    if (!appState.isRecording && rms > this.VOICE_THRESHOLD) {
+                        // console.log('[VAD] 音声検出! レベル:', rms.toFixed(4));
+
+                        // 🔥 手動モードなら自動開始しない
+                        if (this.mode === 'vad') {
+                            this.startDirectRecording();
+                        }
+                    }
+
+                    if (appState.isRecording) {
+                        if (rms < this.SILENCE_THRESHOLD) {
+                            if (!this.silenceTimeout) {
+                                this.silenceTimeout = setTimeout(() => {
+                                    const recordingDuration = Date.now() - this.recordingStartTime;
+                                    if (recordingDuration >= this.MIN_RECORDING_TIME) {
+                                        this.stopRecording();
+                                    }
+                                }, this.SILENCE_DURATION);
+                            }
+                        } else {
+                            if (this.silenceTimeout) {
+                                clearTimeout(this.silenceTimeout);
+                                this.silenceTimeout = null;
+                            }
+                        }
+                    }
+
+                    requestAnimationFrame(checkVoice);
+                };
+
+                checkVoice();
+            },
+
+            async startDirectRecording() {
+                if (appState.isRecording) return;
+
+                // 🔒 VADが一時停止中は録音開始しない
+                if (this.vadPaused) {
+                    return;
+                }
+
+                try {
+                    this.recordingStartTime = Date.now();
+
+                    this.mediaRecorder = new MediaRecorder(this.stream, {
+                        mimeType: 'audio/webm'
+                    });
+
+                    this.audioChunks = [];
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                        }
+                    };
+
+                    this.mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+                        await this.sendAudioToServer(audioBlob);
+                    };
+
+                    this.mediaRecorder.start();
+                    appState.isRecording = true;
+                    elements.statusDiv.textContent = "🎤 聞いています...";
+                    elements.statusDiv.classList.add('recording');
+
+                    console.log('[録音] 開始');
+
+                } catch (error) {
+                    console.error("録音開始エラー:", error);
+                    elements.statusDiv.textContent = "⚠️ 録音開始に失敗しました";
+                }
+            },
+
+            stopRecording() {
+                if (this.silenceTimeout) {
+                    clearTimeout(this.silenceTimeout);
+                    this.silenceTimeout = null;
+                }
+
+                if (this.mediaRecorder && appState.isRecording) {
+                    this.mediaRecorder.stop();
+                    appState.isRecording = false;
+                    elements.statusDiv.classList.remove('recording');
+                    elements.statusDiv.textContent = "🔄 処理中...";
+
+                    // 🔒 録音停止したら一時的にVADを停止
+                    this.pauseVAD();
+                }
+            },
+
+            pauseVAD() {
+                // VAD監視を一時停止（isListeningはtrueのまま、音声検出だけ無効化）
+                this.vadPaused = true;
+            },
+
+            resumeVAD() {
+                // VAD監視を再開
+                this.vadPaused = false;
+            },
+
+            stopListening() {
+                this.isListening = false;
+                this.vadPaused = false;
+
+                if (this.silenceTimeout) {
+                    clearTimeout(this.silenceTimeout);
+                    this.silenceTimeout = null;
+                }
+
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+
+                elements.statusDiv.textContent = "💤 待機中";
+                elements.statusDiv.classList.remove('recording');
+            },
+
+            // 🆕 手動録音用メソッド
+            startManualRecording() {
+                if (this.mode !== 'manual') return;
+                console.log('[手動] 録音開始');
+                // VAD一時停止中でも強制的に録音開始するためにフラグ操作
+                const wasPaused = this.vadPaused;
+                this.vadPaused = false;
+                this.startDirectRecording();
+                this.vadPaused = wasPaused; // 元に戻す（録音中は関係ないが）
+
+                const manualBtn = document.getElementById('manualRecordBtn');
+                if (manualBtn) manualBtn.classList.add('recording');
+            },
+
+            stopManualRecording() {
+                if (this.mode !== 'manual') return;
+                console.log('[手動] 録音停止');
+
+                // VADロジックのstopRecordingを流用
+                this.stopRecording();
+                const manualBtn = document.getElementById('manualRecordBtn');
+                if (manualBtn) manualBtn.classList.remove('recording');
+            },
+
+            setMode(mode) {
+                this.mode = mode;
+                console.log(`[音声] モード変更: ${mode}`);
+
+                // モード切替時にVADの動作をリセット
+                if (mode === 'manual') {
+                    this.pauseVAD();
+                    elements.statusDiv.textContent = "🔘 ボタンを押して話してください";
+                } else {
+                    this.resumeVAD();
+                    elements.statusDiv.textContent = "🎤 話しかけてください...";
+                }
+            },
+
+
+            async sendAudioToServer(audioBlob) {
+                const t_start = performance.now();
+                console.log('[⏱️ クライアント] リクエスト開始');
+
+                try {
+                    elements.statusDiv.textContent = "🔄 音声を認識しています...";
+
+                    const formData = new FormData();
+                    formData.append('file', audioBlob, 'recording.webm');
+
+                    const t_request_start = performance.now();
+                    const response = await fetch(`${CONFIG.SERVER_URL}/talk_with_fish_text`, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const t_request_end = performance.now();
+                    console.log(`[⏱️ クライアント] サーバー応答受信: ${((t_request_end - t_request_start) / 1000).toFixed(2)}秒`);
+
+                    if (!response.ok) {
+                        throw new Error('サーバーエラー');
+                    }
+
+                    const t_blob_start = performance.now();
+                    const audioResponseBlob = await response.blob();
+                    const t_blob_end = performance.now();
+                    console.log(`[⏱️ クライアント] データ受信完了: ${((t_blob_end - t_blob_start) / 1000).toFixed(2)}秒`);
+                    console.log(`[⏱️ クライアント] データサイズ: ${(audioResponseBlob.size / 1024).toFixed(2)}KB`);
+
+                    const audioUrl = URL.createObjectURL(audioResponseBlob);
+
+                    elements.statusDiv.textContent = "🐟 メダカが話しています...";
+
+                    const t_play_start = performance.now();
+                    elements.replyAudio.src = audioUrl;
+
+                    elements.replyAudio.onloadeddata = () => {
+                        const t_loaded = performance.now();
+                        console.log(`[⏱️ クライアント] 音声データ読み込み完了: ${((t_loaded - t_play_start) / 1000).toFixed(2)}秒`);
+                    };
+
+                    elements.replyAudio.onplay = () => {
+                        const t_play = performance.now();
+                        console.log(`[⏱️ クライアント] 再生開始: ${((t_play - t_play_start) / 1000).toFixed(2)}秒`);
+
+                        const t_total = (t_play - t_start) / 1000;
+                        console.log(`[⏱️ クライアント] 🎯 総合時間（録音停止→再生開始）: ${t_total.toFixed(2)}秒`);
+                    };
+
+                    await elements.replyAudio.play();
+                    console.log('[メダカ応答] play()実行完了');
+
+                    // 🎧 メダカの音声が終わったらVADを再開
+                    elements.replyAudio.onended = () => {
+                        console.log('[メダカ応答] 音声再生終了');
+                        elements.statusDiv.textContent = "🎤 話しかけてください...";
+                        appState.shouldRestart = true;
+
+                        // ✅ メダカが話し終わったのでVADを再開
+                        if (this.isListening) {
+                            this.resumeVAD();
+                            console.log('[会話] メダカの応答完了 - 次の音声を待機');
+                        }
+                    };
+
+                } catch (error) {
+                    console.error("音声送信エラー:", error);
+                    elements.statusDiv.textContent = '⚠️ 音声処理エラーが発生しました';
+                    appState.shouldRestart = true;
+
+                    // エラー時もVADを再開
+                    setTimeout(() => {
+                        if (appState.shouldRestart && this.isListening) {
+                            this.resumeVAD();
+                            elements.statusDiv.textContent = "🎤 話しかけてください...";
+                            console.log('[エラー復帰] VAD再開');
+                        }
+                    }, 2000);
+                }
+            },
+
+            async startWithMedakaGreeting() {
+                try {
+                    elements.statusDiv.textContent = "🐟 メダカが話しかけています...";
+
+                    const greetingResponse = await fetch(`${CONFIG.SERVER_URL}/get_proactive_message`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ profile_id: CONFIG.PROFILE_ID })
+                    });
+
+                    const greetingBlob = await greetingResponse.blob();
+                    const greetingUrl = URL.createObjectURL(greetingBlob);
+                    elements.replyAudio.src = greetingUrl;
+
+                    await elements.replyAudio.play();
+
+                    elements.replyAudio.onended = () => {
+                        elements.statusDiv.textContent = "🎤 メダカが話しかけたよ。お返事してね！";
+                        setTimeout(() => {
+                            this.startVoiceDetection();
+                        }, 1000);
+                    };
+
+                } catch (error) {
+                    console.error("メダカ挨拶エラー:", error);
+                    this.startVoiceDetection();
+                }
+            }
+        };
+
+        // フルスクリーン機能
+        const fullscreenModule = {
+            enterFullscreen() {
+                appState.isFullscreen = true;
+                elements.fullscreenContainer.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                elements.canvasFullscreenBtn.textContent = '📱 戻る';
+
+                // 🆕 フルスクリーン時に手動モードならボタンを表示
+                const fsRecordBtn = document.getElementById('fullscreenRecordBtn');
+                if (speechModule.mode === 'manual') {
+                    fsRecordBtn.classList.add('visible');
+                } else {
+                    fsRecordBtn.classList.remove('visible');
+                }
+
+                if (appState.showingAnalysis && appState.currentImageData) {
+                    this.updateFullscreenCanvas(appState.currentImageData);
+                } else {
+                    this.displayVideoInFullscreen();
+                }
+            },
+
+            exitFullscreen() {
+                appState.isFullscreen = false;
+                elements.fullscreenContainer.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+                elements.canvasFullscreenBtn.textContent = '🔍 拡大';
+
+                if (this.videoRenderInterval) {
+                    clearInterval(this.videoRenderInterval);
+                    this.videoRenderInterval = null;
+                }
+            },
+
+            displayVideoInFullscreen() {
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+
+                elements.fullscreenCanvas.width = screenWidth;
+                elements.fullscreenCanvas.height = screenHeight;
+                elements.fullscreenCanvas.style.width = `${screenWidth}px`;
+                elements.fullscreenCanvas.style.height = `${screenHeight}px`;
+
+                fullscreenCtx.imageSmoothingEnabled = true;
+                fullscreenCtx.imageSmoothingQuality = 'high';
+
+                const renderVideo = () => {
+                    if (!appState.isFullscreen) return;
+
+                    const videoWidth = elements.video.videoWidth;
+                    const videoHeight = elements.video.videoHeight;
+
+                    if (videoWidth && videoHeight) {
+                        const imageAspectRatio = videoWidth / videoHeight;
+                        const screenAspectRatio = screenWidth / screenHeight;
+
+                        let drawWidth, drawHeight, drawX, drawY;
+
+                        if (imageAspectRatio > screenAspectRatio) {
+                            drawWidth = screenWidth;
+                            drawHeight = screenWidth / imageAspectRatio;
+                            drawX = 0;
+                            drawY = (screenHeight - drawHeight) / 2;
+                        } else {
+                            drawWidth = screenHeight * imageAspectRatio;
+                            drawHeight = screenHeight;
+                            drawX = (screenWidth - drawWidth) / 2;
+                            drawY = 0;
+                        }
+
+                        fullscreenCtx.clearRect(0, 0, screenWidth, screenHeight);
+                        fullscreenCtx.drawImage(elements.video, drawX, drawY, drawWidth, drawHeight);
+                    }
+                };
+
+                if (this.videoRenderInterval) {
+                    clearInterval(this.videoRenderInterval);
+                }
+                this.videoRenderInterval = setInterval(renderVideo, 33);
+                renderVideo();
+            },
+
+            updateFullscreenCanvas(resultImg) {
+                if (!appState.isFullscreen) return;
+
+                if (this.videoRenderInterval) {
+                    clearInterval(this.videoRenderInterval);
+                    this.videoRenderInterval = null;
+                }
+
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+
+                elements.fullscreenCanvas.width = screenWidth;
+                elements.fullscreenCanvas.height = screenHeight;
+                elements.fullscreenCanvas.style.width = `${screenWidth}px`;
+                elements.fullscreenCanvas.style.height = `${screenHeight}px`;
+
+                fullscreenCtx.imageSmoothingEnabled = true;
+                fullscreenCtx.imageSmoothingQuality = 'high';
+
+                const imageAspectRatio = resultImg.naturalWidth / resultImg.naturalHeight;
+                const screenAspectRatio = screenWidth / screenHeight;
+
+                let drawWidth, drawHeight, drawX, drawY;
+
+                if (imageAspectRatio > screenAspectRatio) {
+                    drawWidth = screenWidth;
+                    drawHeight = screenWidth / imageAspectRatio;
+                    drawX = 0;
+                    drawY = (screenHeight - drawHeight) / 2;
+                } else {
+                    drawWidth = screenHeight * imageAspectRatio;
+                    drawHeight = screenHeight;
+                    drawX = (screenWidth - drawWidth) / 2;
+                    drawY = 0;
+                }
+
+                fullscreenCtx.clearRect(0, 0, screenWidth, screenHeight);
+                fullscreenCtx.drawImage(resultImg, drawX, drawY, drawWidth, drawHeight);
+            },
+
+            setupEventListeners() {
+                elements.canvasFullscreenBtn.addEventListener('click', () => {
+                    if (appState.isFullscreen) {
+                        this.exitFullscreen();
+                    } else {
+                        this.enterFullscreen();
+                    }
+                });
+
+                elements.displayCanvas.addEventListener('click', () => {
+                    if (!appState.isFullscreen) {
+                        if (appState.showingAnalysis) {
+                            this.enterFullscreen();
+                        }
+                    }
+                });
+
+                elements.exitBtn.addEventListener('click', () => this.exitFullscreen());
+            }
+        };
+
+        // UI制御機能
+        const uiModule = {
+            setupVADButtons() {
+                elements.vadStartBtn.addEventListener('click', () => {
+                    speechModule.startListening();
+                    elements.vadStartBtn.disabled = true;
+                    elements.vadStopBtn.disabled = false;
+                });
+
+                elements.vadStopBtn.addEventListener('click', () => {
+                    speechModule.stopListening();
+                    elements.vadStartBtn.disabled = false;
+                    elements.vadStopBtn.disabled = true;
+                });
+
+                // 🆕 モード切替ラジオボタン
+                const modeRadios = document.querySelectorAll('input[name="recMode"]');
+                const vadButtonsDiv = document.getElementById('vadButtons');
+                const manualButtonsDiv = document.getElementById('manualButtons');
+
+                modeRadios.forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const mode = e.target.value;
+                        speechModule.setMode(mode);
+
+                        if (mode === 'vad') {
+                            vadButtonsDiv.classList.remove('hidden');
+                            manualButtonsDiv.classList.add('hidden');
+                            // VAD開始ボタンを有効化して、ユーザーに明示的に開始させるか、
+                            // あるいは自動で開始するか。ここでは安全のため何もしない（ユーザー操作待ち）。
+                            // ただし、もし既にListening中なら、resumeVADされる。
+                        } else {
+                            vadButtonsDiv.classList.add('hidden');
+                            manualButtonsDiv.classList.remove('hidden');
+
+                            // 手動モードに切り替えたら、基本的にはListening状態（マイクON）にしておく必要がある
+                            // そうしないと録音できない。
+                            if (!speechModule.isListening) {
+                                speechModule.startListening();
+                                // ボタン状態同期
+                                elements.vadStartBtn.disabled = true;
+                                elements.vadStopBtn.disabled = false;
+                            }
+                        }
+                    });
+                });
+
+                // 🆕 手動録音ボタン
+                const manualBtn = document.getElementById('manualRecordBtn');
+
+                // マウス/タッチ開始で録音開始
+                const startRec = (e) => {
+                    e.preventDefault(); // テキスト選択などを防止
+                    speechModule.startManualRecording();
+                };
+
+                // マウス/タッチ終了で録音停止
+                const stopRec = (e) => {
+                    e.preventDefault();
+                    speechModule.stopManualRecording();
+                };
+
+                manualBtn.addEventListener('mousedown', startRec);
+                manualBtn.addEventListener('touchstart', startRec);
+
+                manualBtn.addEventListener('mouseup', stopRec);
+                manualBtn.addEventListener('touchend', stopRec);
+                manualBtn.addEventListener('mouseleave', stopRec); // 範囲外に出たときも停止
+
+                // 🆕 フルスクリーン用録音ボタン
+                const fsRecordBtn = document.getElementById('fullscreenRecordBtn');
+
+                fsRecordBtn.addEventListener('mousedown', startRec);
+                fsRecordBtn.addEventListener('touchstart', startRec);
+                fsRecordBtn.addEventListener('mouseup', stopRec);
+                fsRecordBtn.addEventListener('touchend', stopRec);
+                fsRecordBtn.addEventListener('mouseleave', stopRec);
+            },
+
+            setupStartButton() {
+                elements.startButton.addEventListener("click", () => {
+                    elements.replyAudio.src = "";
+                    elements.replyAudio.load();
+
+                    // 🔥 iOS対策: ボタンを押してから解析ループを開始する（初期負荷を減らす）
+                    if (!window.analysisStarted) {
+                        window.analysisStarted = true;
+                        const processLoop = async () => {
+                            if (window.analysisStarted) {
+                                await imageModule.sendFrame();
+                                setTimeout(processLoop, CONFIG.FRAME_RATE);
+                            }
+                        };
+                        processLoop();
+                        console.log('✅ 解析ループを開始しました');
+                    }
+
+                    setTimeout(() => {
+                        appState.shouldRestart = true;
+                        elements.startButton.classList.add('hidden');
+                        elements.vadControls.classList.remove('hidden');
+                        elements.statusDiv.textContent = "🎤 「音声検出開始」ボタンを押してください";
+
+                        // 初期状態の設定
+                        elements.vadStartBtn.disabled = false;
+                        elements.vadStopBtn.disabled = true;
+                    }, 500);
+                });
+            },
+
+            setupSwitchButton() {
+                elements.switchViewBtn.addEventListener('click', () => {
+                    appState.showingAnalysis = !appState.showingAnalysis;
+
+                    if (appState.showingAnalysis) {
+                        elements.displayCanvas.classList.remove('hidden');
+                        elements.switchViewBtn.textContent = '📹 カメラ';
+                    } else {
+                        elements.displayCanvas.classList.add('hidden');
+                        elements.switchViewBtn.textContent = '📊 解析結果';
+                    }
+                });
+            }
+        };
+
+        // アプリケーション初期化・メイン処理
+        const app = {
+            async init() {
+
+                elements.vadControls.classList.add('hidden');
+                await this.loadProfiles();
+                // ✅ ブラウザ検出モデルを読み込み
+                await browserDetectionModule.loadModel();
+
+                await cameraModule.startCamera();
+                speechModule.init();
+                fullscreenModule.setupEventListeners();
+                uiModule.setupVADButtons();
+                uiModule.setupStartButton();
+                uiModule.setupSwitchButton();
+
+                // setInterval(() => imageModule.sendFrame(), CONFIG.FRAME_RATE);
+                // 🔥 iOS対策: 初期状態ではループを回さない（ボタン押下後に開始）
+                // const processLoop = async () => {
+                //     await imageModule.sendFrame();
+                //     setTimeout(processLoop, CONFIG.FRAME_RATE);
+                // };
+                // processLoop();
+
+                elements.statusDiv.textContent = "🚀 「会話を始める」を押してスタート";
+
+                this.optimizeTouchEvents();
+
+                console.log('🐠 魚認識アプリが初期化されました (ブラウザ検出)');
+            },
+
+            async loadProfiles() {
+                try {
+                    const res = await fetch(`${CONFIG.SERVER_URL}/profiles`);
+                    const profiles = await res.json();
+
+                    const select = document.getElementById('profileSelect');
+                    select.innerHTML = '<option value="">アカウントを選択...</option>';
+
+                    profiles.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = p.id;
+                        option.textContent = `${p.name} (${p.age}歳)`;
+                        select.appendChild(option);
+                    });
+
+                    // 🔥 最初のアカウントを自動選択
+                    if (profiles.length > 0) {
+                        select.value = profiles[0].id;
+                        CONFIG.PROFILE_ID = profiles[0].id;
+
+                        await fetch(`${CONFIG.SERVER_URL}/set_current_profile`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ profile_id: profiles[0].id })
+                        });
+
+                        elements.statusDiv.textContent = `👤 ${profiles[0].name}さんを選択中`;
+                        console.log('✅ 初期選択:', profiles[0].name, 'ID:', profiles[0].id);
+                    }
+
+                    // 🔥 イベントリスナーを一度だけ登録（既存のリスナーを削除）
+                    const newSelect = select.cloneNode(true);
+                    select.parentNode.replaceChild(newSelect, select);
+
+                    newSelect.addEventListener('change', async (e) => {
+                        const profileId = parseInt(e.target.value);
+                        if (!profileId) return;
+
+                        appState.currentProfileId = profileId;
+                        CONFIG.PROFILE_ID = profileId;
+
+                        console.log('📡 サーバーに送信:', profileId);
+
+                        const response = await fetch(`${CONFIG.SERVER_URL}/set_current_profile`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ profile_id: profileId })
+                        });
+
+                        const result = await response.json();
+                        console.log('✅ サーバー応答:', result);
+
+                        const selectedText = e.target.options[e.target.selectedIndex].text;
+                        elements.statusDiv.textContent = `👤 ${selectedText} を選択中`;
+                    });
+
+                    // 新規作成ボタン（こちらも再登録）
+                    const addBtn = document.getElementById('addAccountBtn');
+                    const newAddBtn = addBtn.cloneNode(true);
+                    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+
+                    newAddBtn.addEventListener('click', async () => {
+                        const name = prompt('名前を入力:');
+                        if (!name) return;
+
+                        const age = prompt('年齢を入力:');
+                        if (!age || isNaN(age)) {
+                            alert('年齢は数字で入力してください');
+                            return;
+                        }
+
+                        const res = await fetch(`${CONFIG.SERVER_URL}/profiles`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name, age: parseInt(age) })
+                        });
+
+                        if (res.ok) {
+                            elements.statusDiv.textContent = '✅ アカウントを作成しました';
+                            await app.loadProfiles();
+                        }
+                    });
+
+                    console.log(`✅ ${profiles.length}件のアカウント読み込み完了`);
+
+                } catch (error) {
+                    console.error('❌ アカウント読み込みエラー:', error);
+                }
+            },
+
+            optimizeTouchEvents() {
+                document.addEventListener('touchstart', function () { }, { passive: true });
+                document.addEventListener('touchmove', function () { }, { passive: true });
+            }
+        };
+        app.init();
+    </script>
+</body>
+
+</html>
